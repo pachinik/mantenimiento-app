@@ -78,7 +78,7 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
 
   const handleEdit = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    router.push(`/ordenes/editar/${id}`)
+    router.push(`/editar-orden?id=${id}`)
   }
 
   return (
