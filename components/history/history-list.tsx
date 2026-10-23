@@ -2,10 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { MaintenanceRecord } from '@/lib/records'
 import { formatDateTime } from '@/lib/format'
-import { Trash2, Pencil, ChevronRight, Search, FileSpreadsheet } from 'lucide-react'
+import { Trash2, Pencil, ChevronRight, Search } from 'lucide-react'
+
+// Inicialización directa y segura de Supabase usando las variables de entorno
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 interface HistoryListProps {
   initialRecords: MaintenanceRecord[]
