@@ -2,10 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { MaintenanceRecord } from '@/lib/records'
 import { formatDateTime } from '@/lib/format'
 import { Trash2, Pencil, ChevronRight, Search, Loader2 } from 'lucide-react'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 interface HistoryListProps {
   initialRecords: MaintenanceRecord[]
@@ -16,31 +21,23 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
   const [search, setSearch] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  
   const router = useRouter()
-  // Usamos el cliente oficial del cliente para Next.js que adjunta automáticamente las cookies/tokens
-  const supabase = createClientComponentClient()
 
-  // Mantener sincronizado el estado si la página padre se actualiza
   useEffect(() => {
     setRecords(initialRecords)
   }, [initialRecords])
 
-  // Comprobar la sesión activa del administrador
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAdmin(!!session)
-    }
-
-    checkAuth()
+    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAdmin(!!session)
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [])
 
   const filteredRecords = records.filter(
     (record) =>
@@ -58,15 +55,15 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
     setDeletingId(record.id)
 
     try {
-      // 1. Verificar sesión activa
       const { data: { session } } = await supabase.auth.getSession()
+
       if (!session) {
-        alert('Error: Tu sesión ha expirado o no estás autenticado como administrador.')
+        alert('Error: No hay una sesión de administrador activa.')
         setDeletingId(null)
         return
       }
 
-      // 2. Ejecutar borrado con retorno explícito del registro eliminado
+      // 1. Ejecutar el borrado en la base de datos exigiendo la devolución de la fila eliminada
       const { data, error } = await supabase
         .from('maintenance_records')
         .delete()
@@ -74,22 +71,22 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
         .select()
 
       if (error) {
-        alert(`Error de Supabase: ${error.message}`)
+        alert(`Error de Supabase al eliminar: ${error.message}`)
         setDeletingId(null)
         return
       }
 
-      // Si no devolvió datos, RLS bloqueó el borrado en la BD
+      // Si no devolvió datos, significa que las políticas RLS de Supabase bloquearon el DELETE
       if (!data || data.length === 0) {
         alert(
-          'No se pudo eliminar el registro en Supabase.\n\n' +
-          'Causa probable: Las políticas RLS (Row Level Security) de la tabla "maintenance_records" no permiten el comando DELETE para usuarios autenticados.'
+          'Supabase bloqueó la eliminación.\n\n' +
+          'Las políticas de seguridad (RLS) en la tabla "maintenance_records" no permiten el comando DELETE para usuarios autenticados.'
         )
         setDeletingId(null)
         return
       }
 
-      // 3. Limpiar archivos asociados en Storage
+      // 2. Limpiar los archivos vinculados en el Storage de Supabase
       const filesToDelete: string[] = []
       if (record.signatureUrl) {
         const parts = record.signatureUrl.split('/maintenance-files/')
@@ -106,13 +103,13 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
         await supabase.storage.from('maintenance-files').remove(filesToDelete)
       }
 
-      // 4. Actualizar interfaz local y revalidar la caché del servidor
+      // 3. Remover del estado de la interfaz y actualizar caché
       setRecords((prev) => prev.filter((r) => r.id !== record.id))
       router.refresh()
 
     } catch (err) {
-      console.error('Error durante la eliminación:', err)
-      alert('Ocurrió un error inesperado al intentar eliminar.')
+      console.error('Error al intentar eliminar:', err)
+      alert('Ocurrió un error inesperado al eliminar el registro.')
     } finally {
       setDeletingId(null)
     }
