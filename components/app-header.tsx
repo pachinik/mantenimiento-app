@@ -1,52 +1,34 @@
-'use client'
-
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { History, Plus, Wrench } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Wrench } from 'lucide-react'
 
-const LINKS = [
-  { href: '/', label: 'Nueva orden', icon: Plus },
-  { href: '/historial', label: 'Historial', icon: History },
-]
-
-export function AppHeader({ children }: { children?: React.ReactNode }) {
-  const pathname = usePathname()
-
+export function AppHeader() {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Wrench className="size-5" aria-hidden="true" />
-            </span>
-            <div className="hidden sm:block">
-              <p className="font-semibold leading-tight">Solucion-lab</p>
-              <p className="text-xs text-muted-foreground">Soporte Técnico</p>
-            </div>
-          </Link>
-          <nav aria-label="Principal" className="flex items-center gap-1">
-            {LINKS.map(({ href, label, icon: Icon }) => {
-              const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
-                    active ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {label}
-                </Link>
-              )
-            })}
-          </nav>
+    <header className="border-b border-neutral-800 bg-neutral-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 text-white p-2 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Wrench className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="font-bold text-white text-base leading-tight">Solucion-lab</h1>
+            <p className="text-xs text-neutral-400">Soporte Técnico</p>
+          </div>
         </div>
-        {children && <div className="hidden text-right sm:block">{children}</div>}
+
+        <nav className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-sm font-medium text-neutral-300 hover:text-white transition px-3 py-2 rounded-lg hover:bg-neutral-800/60"
+          >
+            Nueva orden
+          </Link>
+          <Link
+            href="/historial"
+            className="text-sm font-medium text-neutral-300 hover:text-white transition px-3 py-2 rounded-lg hover:bg-neutral-800/60 flex items-center gap-2"
+          >
+            Órdenes
+          </Link>
+        </nav>
       </div>
     </header>
   )
