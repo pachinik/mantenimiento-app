@@ -35,7 +35,7 @@ export function AppHeader() {
     setError('')
 
     // Correo configurado para el administrador en Supabase
-    const adminEmail = 'admin@solucion-lab.com'
+    const adminEmail = 'pachinik21@gmail.com'
 
     const { error } = await supabase.auth.signInWithPassword({
       email: adminEmail,
