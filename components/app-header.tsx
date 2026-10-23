@@ -22,8 +22,8 @@ export function AppHeader({ children }: { children?: React.ReactNode }) {
               <Wrench className="size-5" aria-hidden="true" />
             </span>
             <div className="hidden sm:block">
-              <p className="font-semibold leading-tight">FieldService</p>
-              <p className="text-xs text-muted-foreground">Registro técnico en campo</p>
+              <p className="font-semibold leading-tight">Solucion-Lab</p>
+              <p className="text-xs text-muted-foreground">Soporte Técnico</p>
             </div>
           </Link>
           <nav aria-label="Principal" className="flex items-center gap-1">
