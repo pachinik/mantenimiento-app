@@ -1,112 +1,115 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { ChevronRight, FileSpreadsheet, Inbox, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { DateTime } from '@/components/date-time'
-import { inputClass } from '@/components/service-order/form-primitives'
-import { exportRecordsCsv } from '@/lib/csv'
-import type { MaintenanceRecord } from '@/lib/records'
-import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { MaintenanceRecord } from '@/lib/records'
+import { formatDateTime } from '@/lib/format'
+import { Trash2, Pencil, ChevronRight, Search, FileSpreadsheet } from 'lucide-react'
 
-const normalize = (v: string) =>
-  v
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
+interface HistoryListProps {
+  initialRecords: MaintenanceRecord[]
+}
 
-export function HistoryList({ records }: { records: MaintenanceRecord[] }) {
-  const [query, setQuery] = useState('')
+export function HistoryList({ initialRecords }: HistoryListProps) {
+  const [records, setRecords] = useState<MaintenanceRecord[]>(initialRecords)
+  const [search, setSearch] = useState('')
+  const router = useRouter()
 
-  const filtered = useMemo(() => {
-    const q = normalize(query.trim())
-    if (!q) return records
-    return records.filter((r) => normalize(`${r.orderNumber} ${r.clientName} ${r.company}`).includes(q))
-  }, [records, query])
+  const filteredRecords = records.filter(
+    (record) =>
+      record.clientName?.toLowerCase().includes(search.toLowerCase()) ||
+      record.orderNumber?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('¿Estás seguro de que deseas eliminar esta orden permanentemente de Supabase?')) return
+
+    const { error } = await supabase
+      .from('maintenance_records')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert('Hubo un error al eliminar el registro: ' + error.message)
+    } else {
+      setRecords(records.filter((r) => r.id !== id))
+    }
+  }
+
+  const handleEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    router.push(`/ordenes/editar/${id}`)
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <label htmlFor="history-search" className="sr-only">
-            Buscar por cliente o número de orden
-          </label>
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
           <input
-            id="history-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            type="text"
             placeholder="Buscar por cliente o número de orden"
-            className={cn(inputClass, 'pl-10')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-10 pr-4 py-2 text-white placeholder:text-neutral-500 focus:outline-none focus:border-blue-500 text-sm"
           />
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => exportRecordsCsv(filtered)}
-          disabled={filtered.length === 0}
-          className="h-12 font-semibold"
-        >
-          <FileSpreadsheet className="size-4" aria-hidden="true" />
-          Exportar CSV
-        </Button>
       </div>
 
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {filtered.length} {filtered.length === 1 ? 'orden' : 'órdenes'}
-        {query.trim() ? ` de ${records.length}` : ''}
-      </p>
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
+        <div className="divide-y divide-neutral-800">
+          {filteredRecords.length === 0 ? (
+            <div className="p-12 text-center text-neutral-500 text-sm">
+              No se encontraron órdenes registradas.
+            </div>
+          ) : (
+            filteredRecords.map((record) => (
+              <div
+                key={record.id}
+                onClick={() => router.push(`/historial/${record.id}`)}
+                className="flex items-center justify-between p-4 hover:bg-neutral-800/50 transition cursor-pointer group"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-blue-400 font-medium text-sm">
+                      {record.orderNumber}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      {formatDateTime(record.createdAt)}
+                    </span>
+                  </div>
+                  <div className="text-white font-medium text-sm">{record.clientName}</div>
+                  <div className="text-xs text-neutral-400">
+                    Equipo: <span className="text-neutral-300">{record.equipmentModel || 'Sin especificar'}</span> | Técnico: <span className="text-neutral-300">{record.technician || 'Soporte Técnico'}</span>
+                  </div>
+                </div>
 
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
-          <Inbox className="size-8 text-muted-foreground" aria-hidden="true" />
-          <p className="font-medium">{records.length === 0 ? 'Aún no hay órdenes guardadas' : 'Sin resultados'}</p>
-          <p className="text-sm text-muted-foreground">
-            {records.length === 0 ? 'Las órdenes registradas aparecerán aquí.' : 'Prueba con otro cliente o número de orden.'}
-          </p>
+                <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleEdit(record.id, e)}
+                    className="p-2 text-neutral-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
+                    title="Editar orden"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={(e) => handleDelete(record.id, e)}
+                    className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                    title="Eliminar orden"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+
+                  <ChevronRight className="w-5 h-5 text-neutral-600 ml-1" />
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="hidden grid-cols-[180px_140px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_20px] gap-4 border-b border-border px-5 py-3 text-xs uppercase tracking-wider text-muted-foreground md:grid">
-            <span>N.º de orden</span>
-            <span>Fecha</span>
-            <span>Cliente</span>
-            <span>Equipo</span>
-            <span>Técnico</span>
-            <span className="sr-only">Abrir</span>
-          </div>
-          <ul className="divide-y divide-border">
-            {filtered.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/historial/${encodeURIComponent(r.id)}`}
-                  className="grid grid-cols-[minmax(0,1fr)_20px] items-center gap-x-4 gap-y-1 px-4 py-4 transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50 focus-visible:outline-none sm:px-5 md:grid-cols-[180px_140px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_20px]"
-                >
-                  <div className="flex items-center justify-between gap-3 md:contents">
-                    <span className="truncate font-mono text-sm text-primary">{r.orderNumber}</span>
-                    <DateTime value={r.createdAt} className="shrink-0 font-mono text-xs text-muted-foreground md:text-sm" />
-                  </div>
-                  <ChevronRight className="row-span-3 size-5 text-muted-foreground md:order-last md:row-span-1" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{r.clientName || 'Sin cliente'}</p>
-                    {r.company && <p className="truncate text-xs text-muted-foreground">{r.company}</p>}
-                  </div>
-                  <p className="truncate text-sm text-secondary-foreground">
-                    <span className="text-muted-foreground md:hidden">{'Equipo: '}</span>
-                    {r.equipmentModel || '—'}
-                  </p>
-                  <p className="truncate text-sm text-secondary-foreground">
-                    <span className="text-muted-foreground md:hidden">{'Técnico: '}</span>
-                    {r.technician || '—'}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
