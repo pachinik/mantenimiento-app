@@ -22,7 +22,7 @@ export function AppHeader({ children }: { children?: React.ReactNode }) {
               <Wrench className="size-5" aria-hidden="true" />
             </span>
             <div className="hidden sm:block">
-              <p className="font-semibold leading-tight">Solucion-Lab</p>
+              <p className="font-semibold leading-tight">Solucion-lab</p>
               <p className="text-xs text-muted-foreground">Soporte Técnico</p>
             </div>
           </Link>
