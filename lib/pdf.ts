@@ -78,18 +78,23 @@ export async function downloadRecordPdf(record: MaintenanceRecord) {
   doc.rect(0, 0, pageW, 32, 'F')
   doc.setFillColor(...ACCENT)
   doc.rect(0, 32, pageW, 1.2, 'F')
+  
+  // Cambiado a Solucion-Lab y Soporte Técnico
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(17)
   doc.setTextColor(255, 255, 255)
-  doc.text('Orden de servicio técnico', margin, 15)
+  doc.text('Solucion-Lab', margin, 15)
+  
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9.5)
   doc.setTextColor(176, 186, 202)
-  doc.text('FieldService - Registro técnico en campo', margin, 22)
+  doc.text('Soporte Técnico - Registro técnico en campo', margin, 22)
+
   doc.setFont('courier', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(255, 255, 255)
   doc.text(record.orderNumber, pageW - margin, 15, { align: 'right' })
+  
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9.5)
   doc.setTextColor(176, 186, 202)
