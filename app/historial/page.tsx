@@ -39,7 +39,7 @@ export default async function HistorialPage() {
             </div>
           </div>
         ) : (
-          <HistoryList records={records} />
+          <HistoryList initialRecords={records} />
         )}
       </main>
     </div>
