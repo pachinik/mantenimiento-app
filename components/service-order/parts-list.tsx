@@ -15,15 +15,19 @@ type Props = {
 export function PartsList({ parts, onChange }: Props) {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState('')
 
   function addPart(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    onChange([...parts, { id: createId(), name: name.trim(), code: code.trim(), quantity }])
+    
+    // Si la cantidad está vacía, toma 1 por defecto
+    const finalQuantity = Math.max(1, Number.parseInt(quantity, 10) || 1)
+    
+    onChange([...parts, { id: createId(), name: name.trim(), code: code.trim(), quantity: finalQuantity }])
     setName('')
     setCode('')
-    setQuantity(1)
+    setQuantity('')
   }
 
   function updateQuantity(id: string, delta: number) {
@@ -78,8 +82,9 @@ export function PartsList({ parts, onChange }: Props) {
               inputMode="numeric"
               min={1}
               className={cn(inputClass, 'text-center font-mono')}
+              placeholder="1"
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number.parseInt(e.target.value, 10) || 1))}
+              onChange={(e) => setQuantity(e.target.value)}
             />
           </div>
         </div>
