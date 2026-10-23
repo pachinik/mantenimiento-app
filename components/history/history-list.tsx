@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { MaintenanceRecord } from '@/lib/records'
 import { formatDateTime } from '@/lib/format'
 import { Trash2, Pencil, ChevronRight, Search } from 'lucide-react'
 
-// Inicialización directa y segura de Supabase usando las variables de entorno
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -20,7 +19,20 @@ interface HistoryListProps {
 export function HistoryList({ initialRecords }: HistoryListProps) {
   const [records, setRecords] = useState<MaintenanceRecord[]>(initialRecords)
   const [search, setSearch] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAdmin(!!session)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdmin(!!session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   const filteredRecords = records.filter(
     (record) =>
@@ -28,20 +40,40 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
       record.orderNumber?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (record: MaintenanceRecord, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('¿Estás seguro de que deseas eliminar esta orden permanentemente de Supabase?')) return
+    if (!confirm(`¿Estás seguro de eliminar la orden ${record.orderNumber}? Esta acción no se puede deshacer.`)) return
 
     const { error } = await supabase
       .from('maintenance_records')
       .delete()
-      .eq('id', id)
+      .eq('id', record.id)
 
     if (error) {
       alert('Hubo un error al eliminar el registro: ' + error.message)
-    } else {
-      setRecords(records.filter((r) => r.id !== id))
+      return
     }
+
+    try {
+      const filesToDelete: string[] = []
+      if (record.signatureUrl) {
+        const parts = record.signatureUrl.split('/maintenance-files/')
+        if (parts[1]) filesToDelete.push(parts[1])
+      }
+      if (record.photos && record.photos.length > 0) {
+        record.photos.forEach(photoUrl => {
+          const parts = photoUrl.split('/maintenance-files/')
+          if (parts[1]) filesToDelete.push(parts[1])
+        })
+      }
+      if (filesToDelete.length > 0) {
+        await supabase.storage.from('maintenance-files').remove(filesToDelete)
+      }
+    } catch (err) {
+      console.error('Error al limpiar archivos del storage:', err)
+    }
+
+    setRecords(records.filter((r) => r.id !== record.id))
   }
 
   const handleEdit = (id: string, e: React.MouseEvent) => {
@@ -92,24 +124,26 @@ export function HistoryList({ initialRecords }: HistoryListProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => handleEdit(record.id, e)}
-                    className="p-2 text-neutral-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
-                    title="Editar orden"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={(e) => handleDelete(record.id, e)}
-                    className="p-2 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                    title="Eliminar orden"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-
-                  <ChevronRight className="w-5 h-5 text-neutral-600 ml-1" />
+                <div className="flex items-center gap-1">
+                  {isAdmin && (
+                    <div className="flex items-center gap-1 mr-2 bg-neutral-950/80 p-1 rounded-lg border border-neutral-800" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => handleEdit(record.id, e)}
+                        className="p-1.5 text-neutral-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition"
+                        title="Editar orden"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(record, e)}
+                        className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition"
+                        title="Eliminar orden"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  <ChevronRight className="w-5 h-5 text-neutral-600" />
                 </div>
               </div>
             ))
